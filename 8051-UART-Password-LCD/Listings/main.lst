@@ -1,0 +1,181 @@
+C51 COMPILER V9.60.7.0   MAIN                                                              07/06/2025 18:12:10 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          // An 8051 microcontroller project to receive UART data, compare passwords, and display results on an LCD.
+   2          
+   3          #include <reg51.h>        // Include 8051 register definitions
+   4          #include <string.h>       // Include string functions for strcmp()
+   5          
+   6          // Define LCD control pins connected to Port 2
+   7          sbit RS = P2^0;           // Register Select pin
+   8          sbit RW = P2^1;           // Read/Write pin (always write = 0)
+   9          sbit EN = P2^2;           // Enable pin
+  10          
+  11          // Function prototypes
+  12          void delay(unsigned int ms);
+  13          void lcd_command(unsigned char cmd);
+  14          void lcd_data(unsigned char dat);
+  15          void lcd_string(char *str);
+  16          void uart_receive(char *buf);
+  17          
+  18          void main() {
+  19   1          char uart_data[13];          // Buffer to store received UART data (12 chars + '\0')
+  20   1          unsigned char i;
+  21   1          bit match_found = 0;         // Flag to check if password matched
+  22   1      
+  23   1          // List of valid passwords
+  24   1          char passwords[][13] = {
+  25   1              "840085AE6BC4",          // Password 1
+  26   1              "6B00298CBD73"           // Password 2
+  27   1          };
+  28   1          unsigned char password_count = sizeof(passwords) / sizeof(passwords[0]);
+  29   1      
+  30   1          // LCD initialization command sequence
+  31   1          unsigned char cmd[] = {
+  32   1              0x38,  // Function Set: 8-bit, 2 lines, 5x7 font
+  33   1              0x0E,  // Display ON, cursor ON
+  34   1              0x06,  // Entry Mode: cursor moves right
+  35   1              0x01   // Clear Display
+  36   1          };
+  37   1      
+  38   1          // UART Initialization
+  39   1          TMOD = 0x21;     // Timer1 Mode2 (8-bit auto-reload) for UART, Timer0 Mode1 for delay
+  40   1          TH1 = 0xFD;      // Load value for 9600 baud rate
+  41   1          SCON = 0x50;     // Serial mode 1, 8-bit data, REN enabled
+  42   1          TR1 = 1;         // Start Timer1
+  43   1      
+  44   1          // Initialize LCD with the command sequence
+  45   1          for(i = 0; i < sizeof(cmd); i++) {
+  46   2              lcd_command(cmd[i]);    // Send command to LCD
+  47   2              delay(5);               // Small delay after each command
+  48   2          }
+  49   1      
+  50   1          // Display default message on Line 1
+  51   1          lcd_command(0x80);          // Move cursor to Line 1, position 0
+  52   1          lcd_string("Waiting...");   // Print default message
+  53   1      
+  54   1          // Main loop
+C51 COMPILER V9.60.7.0   MAIN                                                              07/06/2025 18:12:10 PAGE 2   
+
+  55   1          while(1) {
+  56   2              match_found = 0;            // Reset match flag
+  57   2      
+  58   2              uart_receive(uart_data);    // Receive 12 characters from UART
+  59   2      
+  60   2              // Show received data on LCD
+  61   2              lcd_command(0x01);          // Clear display
+  62   2              delay(5);
+  63   2              lcd_command(0x80);          // Line 1
+  64   2              lcd_string("Received:");    // Display label
+  65   2              lcd_command(0xC0);          // Line 2
+  66   2              lcd_string(uart_data);      // Display received string
+  67   2              delay(2000);                // Delay for 2 seconds
+  68   2      
+  69   2              // Compare received data with each stored password
+  70   2              for(i = 0; i < password_count; i++) {
+  71   3                  if(strcmp(uart_data, passwords[i]) == 0) {
+  72   4                      match_found = 1;    // Match found
+  73   4                      break;
+  74   4                  }
+  75   3              }
+  76   2      
+  77   2              // Clear screen and display result
+  78   2              lcd_command(0x01); delay(5);
+  79   2              lcd_command(0x80);          // Move to Line 1
+  80   2      
+  81   2              if(match_found) {
+  82   3                  lcd_string("Access Allowed");  // Success message
+  83   3              } else {
+  84   3                  lcd_string("Not Allowed");     // Failure message
+  85   3              }
+  86   2      
+  87   2              delay(3000);                // Show result for 3 seconds
+  88   2      
+  89   2              // Reset to default waiting screen
+  90   2              lcd_command(0x01); delay(5);
+  91   2              lcd_command(0x80);
+  92   2              lcd_string("Waiting...");
+  93   2          }
+  94   1      }
+  95          
+  96          // Function to receive 12 characters via UART
+  97          void uart_receive(char *buf) {
+  98   1          unsigned int i = 0;
+  99   1          while(i < 12) {
+ 100   2              while(RI == 0);     // Wait for character to arrive
+ 101   2              buf[i] = SBUF;      // Store received character
+ 102   2              RI = 0;             // Clear receive interrupt flag
+ 103   2              i++;
+ 104   2          }
+ 105   1          buf[i] = '\0';          // Null-terminate the string
+ 106   1      }
+ 107          
+ 108          // Function to send command to LCD
+ 109          void lcd_command(unsigned char cmd) {
+ 110   1          P1 = cmd;       // Send command byte to data pins
+ 111   1          RS = 0;         // Select Command Register
+ 112   1          RW = 0;         // Write mode
+ 113   1          EN = 1;         // Enable high
+ 114   1          delay(1);
+ 115   1          EN = 0;         // Enable low (latch the command)
+ 116   1          delay(1);
+C51 COMPILER V9.60.7.0   MAIN                                                              07/06/2025 18:12:10 PAGE 3   
+
+ 117   1      
+ 118   1          // Extra delay for commands that take longer
+ 119   1          if(cmd == 0x01 || cmd == 0x02) {
+ 120   2              delay(5);
+ 121   2          }
+ 122   1      }
+ 123          
+ 124          // Function to send data (character) to LCD
+ 125          void lcd_data(unsigned char dat) {
+ 126   1          P1 = dat;       // Send data byte to data pins
+ 127   1          RS = 1;         // Select Data Register
+ 128   1          RW = 0;         // Write mode
+ 129   1          EN = 1;         // Enable high
+ 130   1          delay(1);
+ 131   1          EN = 0;         // Enable low
+ 132   1          delay(1);
+ 133   1      }
+ 134          
+ 135          // Function to send a full string to LCD
+ 136          void lcd_string(char *str) {
+ 137   1          while(*str != '\0') {
+ 138   2              lcd_data(*str++);   // Send each character one by one
+ 139   2          }
+ 140   1      }
+ 141          
+ 142          // Function to generate approximate millisecond delay using Timer0
+ 143          void delay(unsigned int ms) {
+ 144   1          while(ms) {
+ 145   2              TL0 = 0x67;     // Load low byte (calculated for ~1ms)
+ 146   2              TH0 = 0xFC;     // Load high byte
+ 147   2              TR0 = 1;        // Start Timer0
+ 148   2              while(TF0 == 0); // Wait for overflow
+ 149   2              TR0 = 0;        // Stop Timer0
+ 150   2              TF0 = 0;        // Clear overflow flag
+ 151   2              ms--;           // Decrease ms count
+ 152   2          }
+ 153   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    433    ----
+   CONSTANT SIZE    =     78    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      52
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
