@@ -95,12 +95,3 @@ Modify them in `char passwords[][13]` in the C code as needed.
 This project is provided for educational purposes. Feel free to modify and adapt for your learning or prototyping.
 
 ---
-✅ How to use it:
-
-1 Copy everything above (from # 📟 UART Password Verification on 8051 Microcontroller to the end).
-
-2 Create a file called README.md in your GitHub repository.
-
-3 Paste this text.
-
-4 Commit.
